@@ -2,13 +2,17 @@
 
 Functions as a Service (FaaS) provider.
 
-This platform runs Flavors (functions || nano-services || lambda), which are small, highly portable NodeJs apps that have a singular specific purpose. bbq manages the instantiation and termination of flavors based on the incoming traffic.
+This platform runs flavors, which are small, highly portable NodeJs modules that have a singular specific purpose. bbq is a platform to orchestrate the deployment and runtime of these flavors.
 
-Flavors lifespans are highly unstable, they can be started and stopped at any moment based on traffic. Flavors are also highly portable, almost no configuration is required to make your code compatible with bbq.
+## Why not AWS Lambda/Google Cloud Functions/etc?
 
-BBQ provides a runtime for flavors to be executed and managed in, along with a common interface and API for building and deploying flavors.
+The underlying operating principle is not _KISS (Keep it simple, stupid)_ but rather _KIGS (Keep it grassroots, stupid)_.
 
-_KIGS (Keep it grassroots, stupid)_
+Political campaigns and advocacy campaigns require a network of interconnected tools, but these tools often don't adequately provide everything a digital strategist needs, or might do so in a poor fashion due to age or simply bad UX. This can make it difficult for campaigns and organizations to innovate with political tech, especially when you don't have the budget to DIY everything yourself.
+
+Bbq provides a cost effective way for a grassroots organization to DIY new tools and products without breaking the bank in server costs, and enforce an architecture that blends well with external services. Additionally, it drops the hassle of configuring Lambda's, API gateways, and makes testing much easier.
+
+Lastly, this cannot be proven yet due to the fact bbq is still in development, but from a philosophical standpoint bbq will be faster and more effective than AWS Lambdas, due to the strict NodeJs adherence of the platform. Flavors are invoked directly as modules from the node runtime, in comparison to a system such as AWS which warms containers and proxies HTTP requests. Because of this, flavors are guaranteed to always be available but without the cost of constantly running them. Further, this allows flavors to quickly natively require _other_ flavors, allowing deep composition and middleware stacking that would be more difficult to replicate on AWS Lambda.
 
 ## Install (Development)
 

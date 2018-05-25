@@ -57,5 +57,11 @@ typings/
 # dotenv environment variables file
 .env
 
+# bbq environment config
+.bbq_config
+
+# bbq flavors
+src/flavors
+
 # next.js build output
 .next
