@@ -1,3 +1,15 @@
+## NEW
+- Embrace JS to its max.
+- Add post-deploy script to bootstrap all of the functions (clone + npm install) and extract their config settings from a bbq file
+ - Maybe we store the config in a JSON file in S3, and make that URL an environment variable?
+ - Flavor config file defines middleware stack, pathname, etc
+- Spin up the clustered process
+- Flavors export an async function which accepts the bbq engine and flavor menu as params. (and maybe boring stuff like Logging & stathat)
+ - This lets flavors spin up other flavors and call them super fast.
+ - This async function should return another function, which indicates the flavor is loaded and also represents the flavor itself.
+ - If the flavor maps to a pathname, it should accept a Koa context as a parameter. Otherwise, the function can accept and do whatever it wants.
+
+## OLD
 - Go ALL IN on JS (for bbq/flavors)
  - Use cluster module, maybe? Need a way to respawn the process after a request to cleanup, potentially.
  - Require flavors on demand / dynamically
