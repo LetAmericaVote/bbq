@@ -3,7 +3,6 @@ const { join } = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const Git = require('nodegit');
-const Logger = require('./logger');
 
 // ############################################
 // ############################################
@@ -11,17 +10,9 @@ const Logger = require('./logger');
 // ############################################
 // ############################################
 
+const Logger = require('./logger');
 const bootstrapLogger = Logger('boostrap', '#80ff00');
-
-function catchErrors(fn) {
-  return function(...args) {
-    return fn(...args).catch((err) => {
-      bootstrapLogger.error(err);
-
-      process.exit(0);
-    });
-  }
-}
+const { catchErrorsAndExit } = require('./utils');
 
 /**
  * Get the pathname of the folder a flavor should
@@ -96,7 +87,7 @@ async function _fetchConfig(url) {
   return new Promise(download);
 }
 
-const fetchConfig = catchErrors(_fetchConfig);
+const fetchConfig = catchErrorsAndExit(_fetchConfig, bootstrapLogger);
 
 /**
  * Read the config file from disk and parse the contents
@@ -120,7 +111,7 @@ async function _readConfigFile(path) {
   return new Promise(read);
 }
 
-const readConfigFile = catchErrors(_readConfigFile);
+const readConfigFile = catchErrorsAndExit(_readConfigFile, bootstrapLogger);
 
 /**
  * Load the config based on the environment settings.
@@ -147,7 +138,7 @@ async function _loadConfig() {
   return config;
 }
 
-const loadConfig = catchErrors(_loadConfig);
+const loadConfig = catchErrorsAndExit(_loadConfig, bootstrapLogger);
 
 /**
  * Clone a flavor from it's Github repo.
@@ -164,7 +155,7 @@ async function _cloneFlavorFromGitRepo(name, repo) {
   return Git.Clone(repo, path);
 }
 
-const cloneFlavorFromGitRepo = catchErrors(_cloneFlavorFromGitRepo);
+const cloneFlavorFromGitRepo = catchErrorsAndExit(_cloneFlavorFromGitRepo, bootstrapLogger);
 
 /**
  * Clone all flavors that are specified in the config
@@ -182,7 +173,7 @@ async function _cloneFlavors(config) {
   return Promise.all(cloneOperations);
 }
 
-const cloneFlavors = catchErrors(_cloneFlavors);
+const cloneFlavors = catchErrorsAndExit(_cloneFlavors, bootstrapLogger);
 
 /**
  * Install the modules for the given flavor.
@@ -227,7 +218,7 @@ async function _installFlavor(name) {
   return new Promise(install);
 }
 
-const installFlavor = catchErrors(_installFlavor);
+const installFlavor = catchErrorsAndExit(_installFlavor, bootstrapLogger);
 
 /**
  * Install are flavors that are specified in the config.
@@ -244,7 +235,7 @@ async function _installFlavors(config) {
   return Promise.all(installOperations);
 }
 
-const installFlavors = catchErrors(_installFlavors);
+const installFlavors = catchErrorsAndExit(_installFlavors, bootstrapLogger);
 
 /**
  * Read the configuration of the specific flavor.
@@ -269,7 +260,7 @@ async function _readFlavorConfig(name) {
   return new Promise(read);
 }
 
-const readFlavorConfig = catchErrors(_readFlavorConfig);
+const readFlavorConfig = catchErrorsAndExit(_readFlavorConfig, bootstrapLogger);
 
 /**
  * Read all of the configurations within flavors that have
@@ -287,7 +278,7 @@ async function _readFlavorConfigs(config) {
   return Promise.all(readOperations);
 }
 
-const readFlavorConfigs = catchErrors(_readFlavorConfigs);
+const readFlavorConfigs = catchErrorsAndExit(_readFlavorConfigs, bootstrapLogger);
 
 /**
  * Read the package.json file of a flavor.
@@ -312,7 +303,7 @@ async function _readFlavorNpmPackageFile(name) {
   return new Promise(read);
 }
 
-const readFlavorNpmPackageFile = catchErrors(_readFlavorNpmPackageFile);
+const readFlavorNpmPackageFile = catchErrorsAndExit(_readFlavorNpmPackageFile, bootstrapLogger);
 
 /**
  * Build a bbq menu from all of the configurations discovered.
@@ -374,7 +365,7 @@ async function _buildMenu(config, flavors) {
       menu.paths[flavor.path][flavor.method] = flavor.name;
     }
 
-    const buildMenuFlavor = catchErrors(_buildMenuFlavor);
+    const buildMenuFlavor = catchErrorsAndExit(_buildMenuFlavor, bootstrapLogger);
 
     flavors.forEach(buildMenuFlavor);
 
@@ -384,7 +375,7 @@ async function _buildMenu(config, flavors) {
   return new Promise(buildMenu);
 }
 
-const buildMenu = catchErrors(_buildMenu);
+const buildMenu = catchErrorsAndExit(_buildMenu, bootstrapLogger);
 
 /**
  * Write the menu to disk.
@@ -410,7 +401,7 @@ async function _writeMenu(menu) {
   return new Promise(write);
 }
 
-const writeMenu = catchErrors(_writeMenu);
+const writeMenu = catchErrorsAndExit(_writeMenu, bootstrapLogger);
 
 /**
  * Initiate the bootstrap process.
@@ -433,7 +424,7 @@ async function _bootstrap() {
   bootstrapLogger.log(`Bootstrap completed with ${Object.keys(menu.flavors).length} flavor(s) configured (${configuredFlavors}).`);
 }
 
-const bootstrap = catchErrors(_bootstrap);
+const bootstrap = catchErrorsAndExit(_bootstrap, bootstrapLogger);
 
 const start = Date.now();
 

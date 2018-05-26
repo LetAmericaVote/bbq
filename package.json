@@ -6,6 +6,8 @@
   "scripts": {
     "bootstrap:dev": "npm run clean && node -r dotenv/config src/bootstrap.js",
     "clean": "rm -rf src/flavors",
+    "start": "node src/index.js",
+    "start:dev": "node -r dotenv/config src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Joe Kent",
