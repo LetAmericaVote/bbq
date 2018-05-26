@@ -1,12 +1,3 @@
-// load config file (either from disk or remote) based on ENV value
-//  - clone all repo's
-//  - run npm install in all folders & ignore dev dep's
-//  - extrct config data
-// store all flavor config data in file & version of config cloned
-// ~~~
-// Add command to package.json
-// Setup test local config w/ Ping flavor
-
 const https = require('https');
 const { join } = require('path');
 const { spawn } = require('child_process');
@@ -76,7 +67,7 @@ function convertBufferData(data) {
  * parse the contents to json.
  *
  * @param  {String} url Url leading to the config
- * @return {Promise.<Object>.<Error>} The parsed data from the config or an error.
+ * @return {Promise.<Object>>} The parsed data from the config or an error.
  */
 async function _fetchConfig(url) {
   function download(resolve, reject) {
@@ -112,7 +103,7 @@ const fetchConfig = catchErrors(_fetchConfig);
  * to json.
  *
  * @param  {String} path Path on local disk to read from
- * @return {Promise.<Object>.<Error>} The parsed data from the config or an error.
+ * @return {Promise.<Object>>} The parsed data from the config or an error.
  */
 async function _readConfigFile(path) {
   function read(resolve, reject) {
@@ -134,7 +125,7 @@ const readConfigFile = catchErrors(_readConfigFile);
 /**
  * Load the config based on the environment settings.
  *
- * @return {Object}
+ * @return {Promise.<Object>}
  */
 async function _loadConfig() {
   const { BBQ_CONFIG } = process.env;
@@ -238,6 +229,12 @@ async function _installFlavor(name) {
 
 const installFlavor = catchErrors(_installFlavor);
 
+/**
+ * Install are flavors that are specified in the config.
+ *
+ * @param       {Object} config bbq config
+ * @return      {Promise}
+ */
 async function _installFlavors(config) {
   const installOperations = validFlavorsFromConfig(config)
     .map(flavor => installFlavor(flavor.name));
@@ -250,6 +247,172 @@ async function _installFlavors(config) {
 const installFlavors = catchErrors(_installFlavors);
 
 /**
+ * Read the configuration of the specific flavor.
+ *
+ * @param       {String} name Flavor name
+ * @return      {Promise.<Object>} Flavor bbq config
+ */
+async function _readFlavorConfig(name) {
+  const path = join(flavorFilePath(name), '/bbq.json');
+
+  bootstrapLogger.debug(`Reading config for flavor ${name} at path ${path}.`);
+
+  function read(resolve, reject) {
+    try {
+      const config = require(path);
+      resolve(config);
+    } catch (error) {
+      reject(error);
+    }
+  }
+
+  return new Promise(read);
+}
+
+const readFlavorConfig = catchErrors(_readFlavorConfig);
+
+/**
+ * Read all of the configurations within flavors that have
+ * been specified by the bbq config.
+ *
+ * @param       {Object} config bbq config
+ * @return      {Promise.<Array<Object>>} Array of flavor bbq configs
+ */
+async function _readFlavorConfigs(config) {
+  const readOperations = validFlavorsFromConfig(config)
+    .map(flavor => readFlavorConfig(flavor.name));
+
+  bootstrapLogger.log(`Reading flavor configurations for ${readOperations.length} flavor(s).`);
+
+  return Promise.all(readOperations);
+}
+
+const readFlavorConfigs = catchErrors(_readFlavorConfigs);
+
+/**
+ * Read the package.json file of a flavor.
+ *
+ * @param       {String} name Flavor name
+ * @return      {Promise.<Object>}      Package.json parsed
+ */
+async function _readFlavorNpmPackageFile(name) {
+  const path = join(flavorFilePath(name), '/package.json');
+
+  bootstrapLogger.debug(`Reading package.json for flavor ${name} at path ${path}.`);
+
+  function read(resolve, reject) {
+    try {
+      const package = require(path);
+      resolve(package);
+    } catch (error) {
+      reject(error);
+    }
+  }
+
+  return new Promise(read);
+}
+
+const readFlavorNpmPackageFile = catchErrors(_readFlavorNpmPackageFile);
+
+/**
+ * Build a bbq menu from all of the configurations discovered.
+ *
+ * @param       {Object} config  bbq config
+ * @param       {Array<Object>} flavors Array of flavor configurations
+ * @return      {Promise.<Object>} bbq menu
+ */
+async function _buildMenu(config, flavors) {
+  const { version } = config;
+  const menu = {
+    meta: { version },
+    flavors: {},
+    paths: {},
+  };
+
+  bootstrapLogger.log(`Creating bbq menu for ${flavors.length} flavors.`);
+
+  function buildMenu(resolve, reject) {
+    async function _buildMenuFlavor(flavor) {
+      if (! flavor.name) {
+        bootstrapLogger.error(`Missing flavor name, skipping. Configuration: ${JSON.stringify(flavor)}`);
+        return;
+      }
+
+      if (menu.flavors[flavor.name]) {
+        reject(`Duplicate flavor(s) named ${flavor.name}. Aborting bootstrap.`);
+        return;
+      }
+
+      const package = await readFlavorNpmPackageFile(flavor.name);
+
+      if (! package.main || ! package.version) {
+        bootstrapLogger.error(`Flavor ${flavor.name} is missing 'main' and/or 'version' in its package.json, skipping.`);
+        return;
+      }
+
+      const modulePath = join(flavorFilePath(flavor.name), package.main);
+      const flavorVersion = package.version;
+
+      bootstrapLogger.debug(`Adding flavor ${flavor.name} to the menu`);
+      menu.flavors[flavor.name] = {
+        ...flavor,
+        modulePath,
+        flavorVersion,
+      };
+
+      if (! flavor.path || ! flavor.method) {
+        return;
+      }
+
+      if (! menu.paths[flavor.path]) {
+        menu.paths[flavor.path] = {};
+      } else if (menu.paths[flavor.path][flavor.method]) {
+        reject(`Path ${flavor.path} with method ${method} have a conflict between ${flavor.name} and ${menu.paths[flavor.path][flavor.method]}. Aborting bootstrap.`);
+        return;
+      }
+
+      menu.paths[flavor.path][flavor.method] = flavor.name;
+    }
+
+    const buildMenuFlavor = catchErrors(_buildMenuFlavor);
+
+    flavors.forEach(buildMenuFlavor);
+
+    resolve(menu);
+  }
+
+  return new Promise(buildMenu);
+}
+
+const buildMenu = catchErrors(_buildMenu);
+
+/**
+ * Write the menu to disk.
+ *
+ * @param       {Object} menu bbq menu
+ * @return      {Promise}
+ */
+async function _writeMenu(menu) {
+  function write(resolve, reject) {
+    const path = join(__dirname, '/flavors/', 'menu.json');
+    const output = JSON.stringify(menu, null, 2);
+
+    bootstrapLogger.log('Writing bbq menu to disk');
+
+    try {
+      fs.writeFileSync(path, output);
+      resolve();
+    } catch (error) {
+      reject(error);
+    }
+  }
+
+  return new Promise(write);
+}
+
+const writeMenu = catchErrors(_writeMenu);
+
+/**
  * Initiate the bootstrap process.
  */
 async function _bootstrap() {
@@ -259,6 +422,15 @@ async function _bootstrap() {
 
   await cloneFlavors(config);
   await installFlavors(config);
+
+  const flavors = await readFlavorConfigs(config);
+  const menu = await buildMenu(config, flavors);
+
+  await writeMenu(menu);
+
+  const configuredFlavors = Object.keys(menu.flavors).join(', ');
+
+  bootstrapLogger.log(`Bootstrap completed with ${Object.keys(menu.flavors).length} flavor(s) configured (${configuredFlavors}).`);
 }
 
 const bootstrap = catchErrors(_bootstrap);
