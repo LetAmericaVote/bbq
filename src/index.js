@@ -27,7 +27,12 @@ async function _init() {
   Object.keys(menu.flavors).forEach(name => {
     const { path, method } = menu.flavors[name];
 
-    // TODO: Optional middleware
+    // TODO: Optional middleware... OR do we let flavors define this?
+    // Like we could have a flavor that just wraps over express cors.
+    // - CORS
+    // - JSON Body parser
+    // - Cookies?
+    // - Static files?
     app[method.toLowerCase()](path, wrapRouteHandler(name));
   });
 
